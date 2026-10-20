@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Punto Nexo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Limelight&family=Special+Elite&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="hud" class="hidden">
+      <div id="status">
+        <span id="status-night">NOCHE I</span>
+        <span id="status-time">23:00</span>
+      </div>
+      <div id="faltas" title="Amonestaciones"></div>
+      <div id="crosshair"></div>
+      <div id="prompt"></div>
+      <div id="toast"></div>
+      <div id="subtitle"><span class="speaker"></span><span class="text"></span></div>
+    </div>
+
+    <div id="docs" class="panel hidden"></div>
+    <div id="rules" class="panel hidden"></div>
+
+    <div id="screen" class="screen"></div>
+    <div id="flash"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
