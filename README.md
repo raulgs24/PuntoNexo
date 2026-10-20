@@ -18,8 +18,9 @@ npm run build    # versión estática en dist/
 | WASD | Moverse |
 | E | Interactuar (hablar, teléfono, campanilla, botón rojo, libro, reglamento) |
 | Q | Examinar documentos / libro de registro |
-| R | Reglamento |
-| 1 / 2 | Con los documentos abiertos: admitir / expulsar |
+| R | Reglamento (incluye las normas del pasillo) |
+| C | Lista de comprobaciones (↑ ↓ o rueda para elegir, → correcto, ← anomalía) |
+| 1 / 2 | Con los documentos abiertos: admitir / expulsar. En el pasillo: elegir respuesta |
 | Esc | Pausa |
 
 Se juega mejor con auriculares y a oscuras. Todo el sonido y todas las texturas se generan por código: no hay ficheros de recursos.
@@ -30,6 +31,8 @@ Se juega mejor con auriculares y a oscuras. Todo el sonido y todas las texturas 
 - Filtro noir: blanco y negro de alto contraste en el que solo sobrevive el rojo, grano de película, viñeta y distorsión.
 - 5 noches con reglas que se acumulan, 14 tipos de anomalía, llamada de la Gerencia al inicio de cada turno.
 - Presencias: si admites una anomalía, aparece en la penumbra y se acerca cuando no la miras. Sostenle la mirada para que desaparezca.
+- Lista de comprobaciones: una casilla por cada norma activa esa noche, que marcas como correcta o anómala hasta llegar a una conclusión.
+- Acompañar a la habitación: algunos huéspedes piden que subas con ellos. En el pasillo te piden cosas; si es una anomalía, intentará convencerte de romper las normas del pasillo.
 - Eventos de terror: apagones, escritura en el espejo, ascensor que se abre solo, llamadas, una figura que solo existe en el reflejo.
 - Dos finales en la quinta noche.
 

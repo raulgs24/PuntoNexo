@@ -183,6 +183,169 @@ body {
   color: var(--red-bright);
 }
 
+#status-tips {
+  margin-left: 14px;
+}
+
+/* ---------- Respuestas en el pasillo ---------- */
+
+#choices {
+  position: absolute;
+  bottom: calc(9vh + 92px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 92vw);
+  background: rgba(0, 0, 0, 0.78);
+  border-top: 1px solid var(--ink-dim);
+  border-bottom: 1px solid var(--ink-dim);
+  padding: 12px 18px 10px;
+}
+
+#choices .opt {
+  font-size: 17px;
+  padding: 5px 0;
+  text-shadow: 0 0 6px #000;
+}
+
+#choices kbd {
+  display: inline-block;
+  border: 1px solid var(--ink);
+  padding: 0 6px;
+  margin-right: 10px;
+  font-family: var(--font-type);
+}
+
+#choices .timer {
+  height: 2px;
+  margin-top: 8px;
+  background: var(--ink-dim);
+  transform-origin: left center;
+}
+
+#choices.pressure {
+  border-color: var(--red-bright);
+}
+
+#choices.pressure .timer {
+  background: var(--red-bright);
+}
+
+/* ---------- Lista de comprobaciones ---------- */
+
+#checklist {
+  position: fixed;
+  right: 18px;
+  top: 58px;
+  width: 300px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 14px 16px 12px;
+  transform: rotate(0.6deg);
+  font-size: 13px;
+}
+
+#checklist h3 {
+  margin: 0;
+  font-family: var(--font-serif);
+  letter-spacing: 0.2em;
+  font-size: 13px;
+  text-align: center;
+}
+
+#checklist .who {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #4b443a;
+  margin: 2px 0 10px;
+}
+
+#checklist ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px;
+  border-bottom: 1px solid rgba(60, 50, 30, 0.25);
+}
+
+#checklist li.sel {
+  background: rgba(30, 25, 15, 0.12);
+  outline: 1px dashed #4b443a;
+}
+
+#checklist .box {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #2a251e;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  line-height: 1;
+}
+
+#checklist li.ok .box {
+  color: #1d1a16;
+}
+
+#checklist li.fail .box,
+#checklist li.fail .label {
+  color: var(--red);
+}
+
+#checklist .label {
+  flex: 1;
+}
+
+#checklist .where {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #6b6252;
+  text-transform: uppercase;
+}
+
+#checklist .verdict {
+  margin-top: 10px;
+  padding: 6px 4px;
+  border-top: 2px solid #2a251e;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+#checklist .verdict.bad {
+  color: var(--red);
+}
+
+#checklist .keys {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: #6b6252;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.rules-sheet h4 {
+  margin: 20px 0 0;
+  font-family: var(--font-serif);
+  letter-spacing: 0.2em;
+  font-size: 13px;
+  text-align: center;
+  border-top: 1px solid #6b6252;
+  padding-top: 14px;
+}
+
+/* Con la lista abierta, los papeles se apartan a la izquierda. */
+body.checklist-open .panel {
+  padding-right: 340px;
+}
+
 /* ---------- Paneles (documentos / reglamento) ---------- */
 
 .panel {

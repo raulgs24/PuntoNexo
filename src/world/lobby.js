@@ -16,6 +16,7 @@ export const SPOTS = {
   doorway: new THREE.Vector3(0, 0, 9.6),
   desk: new THREE.Vector3(0, 0, -4.35),
   elevatorFront: new THREE.Vector3(-7.6, 0, -2.5),
+  escortWait: new THREE.Vector3(-7.9, 0, -0.9),
   elevatorIn: new THREE.Vector3(-10.1, 0, -2.5),
   playerStart: new THREE.Vector3(0, 0, -7.5),
   lurkers: [
@@ -592,6 +593,10 @@ export function buildLobby(scene) {
   box(0.012, 0.36, 0.005, new THREE.MeshStandardMaterial({ color: 0x7a0a0a, roughness: 0.4 }), 0, 0.18, 0, { parent: needle, cast: false });
   scene.add(needle);
   const callPlate = box(0.05, 0.22, 0.12, mats.brass, -HX + 0.03, 1.3, -1.15);
+  // El ascensor también se usa para acompañar a los huéspedes.
+  interactive(doorL, 'elevator');
+  interactive(doorR, 'elevator');
+  interactive(callPlate, 'elevator');
   callPlate.castShadow = false;
   // Index 0..15 en el dial; el 13 ocupa el hueco entre 12 y 14.
   function floorToNeedle(value) {

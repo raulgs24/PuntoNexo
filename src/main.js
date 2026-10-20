@@ -6,6 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 import { buildLobby, SPOTS } from './world/lobby.js';
+import { buildCorridor } from './world/corridor.js';
 import { GuestModel } from './entities/guestModel.js';
 import { Player } from './core/player.js';
 import { UI } from './ui/ui.js';
@@ -44,6 +45,7 @@ composer.addPass(new OutputPass());
 
 // ---------- Mundo ----------
 const lobby = buildLobby(scene);
+const corridor = buildCorridor(scene);
 const audio = new Sfx();
 const ui = new UI(audio);
 const player = new Player(camera, renderer.domElement, lobby, { debug });
@@ -70,7 +72,7 @@ lobby.mirrorRegistry.mirrorOnly.add(playerBody.root);
 scene.add(playerBody.root);
 const bodyLook = new THREE.Vector3();
 
-const game = new Game({ scene, camera, lobby, player, ui, audio, fx: noirPass, playerBody });
+const game = new Game({ scene, camera, lobby, corridor, player, ui, audio, fx: noirPass, playerBody });
 game.showTitle();
 
 renderer.domElement.addEventListener('click', () => {
@@ -114,5 +116,5 @@ if (debug) {
       lobby.update(0.05, t);
     }
   };
-  window.__nexo = { game, player, lobby, scene, camera, renderer, ui, audio, step, GuestModel };
+  window.__nexo = { game, player, lobby, corridor, scene, camera, renderer, ui, audio, step, GuestModel };
 }

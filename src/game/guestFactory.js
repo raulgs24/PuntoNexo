@@ -13,6 +13,7 @@ import {
   NIGHT_ANOMALY_RATE,
   PLAYER_NAME,
   PLAYER_FIRST,
+  ESCORT_REQUESTS,
 } from './data.js';
 import { ANOMALIES, anomaliesForNight } from './anomalies.js';
 
@@ -203,7 +204,8 @@ function makeGuest(rng, used, anomalies, night) {
     talk.push(...rng.shuffle(SMALL_TALK).slice(0, 2));
     if (rng.chance(0.35)) talk.push(rng.pick(RED_HERRINGS));
   }
-  g.lines = { greet, request, handover: rng.pick(HANDOVER), talk: rng.shuffle(talk) };
+  g.lines = { greet, request, handover: rng.pick(HANDOVER), talk: rng.shuffle(talk), escort: rng.pick(ESCORT_REQUESTS) };
+  g.wantsEscort = false;
   // Algunas anomalías hablan con interferencias.
   g.glitchy = g.isAnomaly && rng.chance(0.3 + night * 0.05);
   return g;
@@ -302,6 +304,22 @@ export function generateNight(night, rng) {
     } while (used.has(name));
     used.add(name);
     ledger.push({ name, room: randomRoom(rng) });
+  }
+
+  // Quién pedirá que le acompañen. La primera noche, un humano (para aprender); luego, al azar.
+  if (night === 1) {
+    const humans = guests.map((g, i) => (g.isAnomaly ? -1 : i)).filter((i) => i > 0);
+    const idx = humans.length ? humans[humans.length - 1] : 0;
+    guests[idx].wantsEscort = true;
+  } else {
+    let count = 0;
+    for (const g of rng.shuffle(guests)) {
+      if (count >= 2) break;
+      if (rng.chance(g.isAnomaly ? 0.45 : 0.25)) {
+        g.wantsEscort = true;
+        count++;
+      }
+    }
   }
 
   if (night === 5) {

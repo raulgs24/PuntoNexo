@@ -314,3 +314,33 @@ export function paperTexture(title) {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
+
+// Moqueta del pasillo: rojo oscuro con hexágonos negros y filo dorado. El rojo sobrevive al filtro noir.
+export function carpetTexture() {
+  const s = 256;
+  const c = makeCanvas(s, s);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#5c0a0f';
+  ctx.fillRect(0, 0, s, s);
+  const r = 32;
+  const h = Math.sqrt(3) * r;
+  ctx.lineWidth = 5;
+  for (let row = -1; row < s / h + 1; row++) {
+    for (let col = -1; col < s / (r * 3) + 1; col++) {
+      const cx = col * r * 3 + (row % 2 ? r * 1.5 : 0);
+      const cy = row * h * 0.5;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        ctx.lineTo(cx + Math.cos(a) * r * 0.8, cy + Math.sin(a) * r * 0.8);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#1c0204';
+      ctx.fill();
+      ctx.strokeStyle = '#7a5a26';
+      ctx.stroke();
+    }
+  }
+  speckle(ctx, s, s, 2500, 0.08);
+  return toTexture(c);
+}

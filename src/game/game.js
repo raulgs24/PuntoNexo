@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { GuestModel } from '../entities/guestModel.js';
 import { SPOTS } from '../world/lobby.js';
 import { generateNight } from './guestFactory.js';
-import { ANOMALIES, rulesForNight } from './anomalies.js';
+import { ANOMALIES, CORRIDOR_RULES, rulesForNight, anomaliesForNight } from './anomalies.js';
+import { EscortSession } from './escort.js';
 import { createRng } from '../core/rng.js';
 import * as DATA from './data.js';
 
@@ -28,8 +29,8 @@ function writeSave(n) {
 }
 
 export class Game {
-  constructor({ scene, camera, lobby, player, ui, audio, fx, playerBody }) {
-    Object.assign(this, { scene, camera, lobby, player, ui, audio, fx, playerBody });
+  constructor({ scene, camera, lobby, corridor, player, ui, audio, fx, playerBody }) {
+    Object.assign(this, { scene, camera, lobby, corridor, player, ui, audio, fx, playerBody });
     this.state = 'title';
     this.paused = false;
     this.night = 1;
@@ -55,8 +56,22 @@ export class Game {
     this.hours = 23;
     this.talkBusy = false;
     this.phone = null;
+    this.escort = null;
+    this.escortWaiting = null;
+    this.hiddenForEscort = [];
+    this.tips = 0;
+    this.nightTips = 0;
+    this.distortPulse = 0;
+    this.fadeHold = false;
+    this.checklistPref = true;
 
     window.addEventListener('keydown', (e) => this.onKey(e));
+    window.addEventListener('wheel', (e) => {
+      if (this.isPlaying() && this.ui.checklistOpen) this.ui.moveCheck(Math.sign(e.deltaY));
+    });
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && this.isPlaying() && this.player.locked && this.ui.checklistOpen && !this.ui.panelOpen) this.ui.cycleCheck();
+    });
     player.onStep = () => this.audio.footstep(0.5);
     player.onLockChange = (locked) => {
       if (!locked && this.isPlaying() && !this.player.debug) this.pause();
@@ -69,7 +84,7 @@ export class Game {
   }
 
   isPlaying() {
-    return (this.state === 'phone' || this.state === 'shift') && !this.paused;
+    return (this.state === 'phone' || this.state === 'shift' || this.state === 'escort') && !this.paused;
   }
 
   // ---------- Pantallas ----------
@@ -86,7 +101,8 @@ export class Game {
        </div>
        <div class="controls">
          <kbd>WASD</kbd> moverse &nbsp;·&nbsp; <kbd>Ratón</kbd> mirar &nbsp;·&nbsp; <kbd>E</kbd> interactuar &nbsp;·&nbsp;
-         <kbd>Q</kbd> documentos &nbsp;·&nbsp; <kbd>R</kbd> reglamento &nbsp;·&nbsp; <kbd>Esc</kbd> pausa<br/>
+         <kbd>Q</kbd> documentos &nbsp;·&nbsp; <kbd>R</kbd> reglamento &nbsp;·&nbsp; <kbd>C</kbd> comprobaciones &nbsp;·&nbsp;
+         <kbd>1</kbd><kbd>2</kbd> responder &nbsp;·&nbsp; <kbd>Esc</kbd> pausa<br/>
          Juega con auriculares. Y a oscuras.
        </div>`,
       { seeThrough: true }
@@ -94,6 +110,7 @@ export class Game {
     scr.querySelector('#btn-new').onclick = () => {
       this.audio.init();
       this.faltas = 0;
+      this.tips = 0;
       this.startNight(1);
     };
     const cont = scr.querySelector('#btn-continue');
@@ -101,6 +118,7 @@ export class Game {
       cont.onclick = () => {
         this.audio.init();
         this.faltas = 0;
+        this.tips = 0;
         this.startNight(saved);
       };
   }
@@ -152,6 +170,12 @@ export class Game {
 
   // ---------- Ciclo de noche ----------
   cleanupNight() {
+    this.teardownEscort();
+    this.escortWaiting = null;
+    this.ui.cancelChoice();
+    this.ui.toggleChecklist(false);
+    this.fadeHold = false;
+    this.distortPulse = 0;
     for (const a of this.actors) this.removeActor(a);
     for (const l of this.lurkers) l.model.dispose();
     this.actors = [];
@@ -202,8 +226,11 @@ export class Game {
     this.player.teleport(SPOTS.playerStart, Math.PI);
     this.eventTimer = 25;
     this.endScheduled = false;
+    this.nightTips = 0;
     this.ui.setFaltas(this.faltas);
+    this.ui.setTips(this.tips);
     this.ui.setStatus(n, 23);
+    this.ui.setChecklist(this.checkItems());
     this.showIntro();
   }
 
@@ -212,6 +239,7 @@ export class Game {
     this.ui.showHud(true);
     this.player.canMove = true;
     this.player.canLook = true;
+    if (this.checklistPref) this.ui.toggleChecklist(true);
     this.after(2.0, () => {
       this.ringPhone('gerencia', DATA.GERENCIA_CALLS[this.night - 1]);
     });
@@ -260,7 +288,9 @@ export class Game {
     this.lurkers = [];
     const rows = this.records
       .map((r) => {
-        const truth = r.spec.isAnomaly ? `Anomalía: ${r.spec.anomalies.map((id) => ANOMALIES[id].explain).join(' ')}` : 'Huésped legítimo';
+        let truth = r.spec.isAnomaly ? `Anomalía: ${r.spec.anomalies.map((id) => ANOMALIES[id].explain).join(' ')}` : 'Huésped legítimo';
+        if (r.escort === 'contained') truth += ' La encerraste en su habitación.';
+        if (r.escort === 'escorted') truth += ` Acompañado${r.tips ? ` (+${r.tips} pta)` : ''}.`;
         return `<tr>
           <td>${r.spec.slipName}</td>
           <td>${r.accept ? 'Admitido' : 'Expulsado'}</td>
@@ -274,7 +304,7 @@ export class Game {
       `<h2>AMANECE... O CASI</h2>
        <div class="tagline">Fin de la noche ${ROMAN[this.night - 1]}. ${errors === 0 ? 'Turno impecable.' : `${errors} error${errors > 1 ? 'es' : ''} esta noche.`}</div>
        <table><tr><th>HUÉSPED</th><th>DECISIÓN</th><th>VERDAD</th><th></th></tr>${rows}</table>
-       <div class="small">Amonestaciones acumuladas: ${this.faltas} de ${DATA.MAX_FALTAS}</div>
+       <div class="small">Amonestaciones acumuladas: ${this.faltas} de ${DATA.MAX_FALTAS} · Propinas esta noche: ${this.nightTips} pta (total ${this.tips})</div>
        <div class="btns"><button id="btn-next">Noche ${ROMAN[this.night]}</button></div>`
     );
     writeSave(this.night + 1);
@@ -293,6 +323,10 @@ export class Game {
         'Tres amonestaciones. La Gerencia no despide a nadie: lo reasigna.\n\nEl ascensor se abrió para mí. La aguja marcaba un número que no estaba en el dial.',
       ],
       lurker: ['TE ENCONTRÓ', 'Le di la espalda una sola vez.\n\nEn Punto Nexo no hace falta más.'],
+      escort: [
+        'TE CONVENCIÓ',
+        'Solo me pidió una cosa. Una cosa pequeña.\n\nEn los pasillos de Punto Nexo no hay cosas pequeñas.',
+      ],
     };
     const [title, text] = texts[reason];
     const scr = this.ui.showScreen(
@@ -365,6 +399,7 @@ export class Game {
     actor.onArrive = () => this.arriveAtDesk(actor);
     this.actors.push(actor);
     this.current = actor;
+    this.ui.setChecklist(this.checkItems(), 'Huésped en camino');
     if (spec.isFinal) {
       this.audio.setMusic(false);
       this.audio.stinger();
@@ -378,9 +413,21 @@ export class Game {
       // Desde que llega, tú dejas de reflejarte.
       this.playerBody.root.userData.mirrorActive = false;
     }
+    this.ui.setChecklistWho('Huésped en el mostrador');
     if (this.night === 1 && this.records.length === 0) {
       this.ui.toast('Mira al huésped y pulsa E para hablar con él.');
     }
+  }
+
+  checkItems() {
+    return anomaliesForNight(this.night).map((id) => ({ id, label: ANOMALIES[id].check, where: ANOMALIES[id].where }));
+  }
+
+  addTips(amount) {
+    this.tips += amount;
+    this.nightTips += amount;
+    this.ui.setTips(this.tips);
+    this.audio.click();
   }
 
   removeActor(actor) {
@@ -393,7 +440,9 @@ export class Game {
     const a = this.current;
     if (!a || a.phase !== 'wait' || this.talkBusy) return;
     const s = a.spec;
-    const lines = a.talkStep === 0 ? [s.lines.greet, s.lines.request, s.lines.handover] : [s.lines.talk[(a.talkStep - 1) % s.lines.talk.length]];
+    const first = [s.lines.greet, s.lines.request, s.lines.handover];
+    if (s.wantsEscort) first.push(s.lines.escort);
+    const lines = a.talkStep === 0 ? first : [s.lines.talk[(a.talkStep - 1) % s.lines.talk.length]];
     a.talkStep++;
     this.talkBusy = true;
     const speaker = s.isFinal ? '¿?' : 'Huésped';
@@ -410,6 +459,11 @@ export class Game {
       a.docsGiven = true;
       this.lobby.setDocsVisible(true);
       this.audio.paper();
+      this.ui.setChecklistWho(s.slipName);
+      if (s.wantsEscort && !this.escortHinted) {
+        this.escortHinted = true;
+        this.ui.toast('Quiere que le acompañes. Si lo admites, te esperará junto al ascensor.', false, 6000);
+      }
       if (this.night === 1 && this.records.length === 0) {
         this.ui.toast('Pulsa Q (o E sobre los papeles) para examinar los documentos.', false, 5000);
       }
@@ -443,9 +497,18 @@ export class Game {
     }
 
     const correct = accept ? !a.spec.isAnomaly : a.spec.isAnomaly;
-    this.records.push({ spec: a.spec, accept, correct });
+    const escort = accept && a.spec.wantsEscort;
+    const record = { spec: a.spec, accept, correct, escort: escort ? 'pending' : null };
+    this.records.push(record);
     this.spawnTimer = this.rng.range(5, 9);
     this.advanceClock();
+
+    if (escort) {
+      // No se sabe aún si era una anomalía: lo decidirá el pasillo.
+      this.ui.say('Huésped', 'Gracias. Le espero junto al ascensor.', { onType: () => (a.model.talking = 0.2) });
+      this.sendToEscort(a, record);
+      return;
+    }
 
     const pool = a.spec.isAnomaly ? (accept ? DATA.ACCEPT_ANOMALY : DATA.EXPEL_ANOMALY) : accept ? DATA.ACCEPT_HUMAN : DATA.EXPEL_HUMAN;
     this.ui.say('Huésped', this.rng.pick(pool), { eerie: a.spec.isAnomaly, onType: () => (a.model.talking = 0.2) });
@@ -489,6 +552,118 @@ export class Game {
       this.lobby.setElevatorOpen(true);
       this.audio.elevatorDing();
     };
+  }
+
+  // ---------- Acompañar al huésped ----------
+  sendToEscort(a, record) {
+    a.record = record;
+    a.phase = 'toEscort';
+    a.path = [SPOTS.escortWait.clone()];
+    a.onArrive = () => {
+      a.phase = 'waitEscort';
+      this.escortWaiting = a;
+      this.ui.toast('El huésped te espera junto al ascensor. Ve hasta allí y pulsa E para acompañarle.', false, 6000);
+    };
+  }
+
+  setLobbyHidden(hidden, keep = []) {
+    if (hidden) {
+      this.hiddenForEscort = this.scene.children.filter(
+        (o) => o.visible && o !== this.corridor.group && !keep.includes(o) && !o.isHemisphereLight && !o.isCamera
+      );
+      for (const o of this.hiddenForEscort) o.visible = false;
+    } else {
+      for (const o of this.hiddenForEscort) o.visible = true;
+      this.hiddenForEscort = [];
+    }
+  }
+
+  startEscort() {
+    const a = this.escortWaiting;
+    if (!a || a.phase !== 'waitEscort') return;
+    this.escortWaiting = null;
+    this.state = 'escort';
+    this.ui.closePanels();
+    this.ui.clearSay();
+    this.checklistWasOpen = this.ui.checklistOpen;
+    this.ui.toggleChecklist(false);
+    a.phase = 'riding';
+    this.lobby.setElevatorOpen(true);
+    this.audio.elevatorDing();
+    this.fadeHold = true;
+    this.after(1.0, () => {
+      if (this.state !== 'escort') return;
+      const room = a.spec.room;
+      this.corridor.setup({ room, floor: typeof room === 'number' ? Math.floor(room / 100) : '?' });
+      this.setLobbyHidden(true, [a.model.root]);
+      this.corridor.setVisible(true);
+      this.lobby.setElevatorOpen(false);
+      this.player.world = this.corridor;
+      this.player.teleport(this.corridor.playerStart, 0);
+      a.model.root.position.copy(this.corridor.guestStart);
+      this.escort = new EscortSession(this, a);
+      this.audio.elevatorMotor(2.2);
+      this.after(2.2, () => {
+        if (!this.escort) return;
+        this.audio.elevatorDing();
+        this.fadeHold = false;
+        this.escort.start();
+        if (!this.escortExplained) {
+          this.escortExplained = true;
+          this.after(1, () => this.ui.toast('Sigue al huésped. Responde con 1 o 2. Las normas del pasillo están en el Reglamento (R).', false, 7000));
+        }
+      });
+    });
+  }
+
+  onEscortResolved(session) {
+    const record = session.actor.record;
+    if (!record) return;
+    record.escort = session.outcome;
+    record.tips = session.tips;
+    // Encerrar a la anomalía en su habitación cuenta como acierto.
+    if (session.outcome === 'contained') record.correct = true;
+  }
+
+  escortFatal(session) {
+    const a = session.actor;
+    this.ui.cancelChoice();
+    this.ui.clearSay();
+    this.removeActor(a);
+    this.actors = this.actors.filter((x) => x !== a);
+    const flags = { ...a.spec.flags, eyes: a.spec.flags.eyes === 'three' ? 'three' : 'red', stare: true };
+    const scare = new GuestModel({ ...a.spec.traits, suitcase: false }, flags);
+    this.scene.add(scare.root);
+    this.corridor.flicker(1.5);
+    this.jumpscare(scare, 'escort');
+  }
+
+  endEscort() {
+    const s = this.escort;
+    if (!s || s.phase !== 'returning') return;
+    s.phase = 'dead';
+    this.audio.elevatorDing();
+    this.fadeHold = true;
+    this.after(1.0, () => {
+      this.teardownEscort();
+      this.player.teleport(SPOTS.elevatorFront, -Math.PI / 2);
+      this.lobby.setElevatorOpen(true);
+      this.audio.elevatorMotor(1.5);
+      this.state = 'shift';
+      this.spawnTimer = 3;
+      if (this.checklistWasOpen) this.ui.toggleChecklist(true);
+      this.after(0.4, () => (this.fadeHold = false));
+      this.after(2.5, () => this.lobby.setElevatorOpen(false));
+    });
+  }
+
+  teardownEscort() {
+    if (this.escort) this.escort.phase = 'dead';
+    this.escort = null;
+    this.ui.cancelChoice();
+    this.corridor.setVisible(false);
+    this.setLobbyHidden(false);
+    this.player.world = this.lobby;
   }
 
   sendOut(a) {
@@ -590,6 +765,9 @@ export class Game {
           a.path = [SPOTS.elevatorIn.clone()];
           a.onArrive = () => this.guestInElevator(a);
         }
+      } else if (a.phase === 'waitEscort') {
+        m.faceTowards(_v2.set(camPos.x, 0, camPos.z), dt, 3);
+        m.lookTarget = camPos;
       } else if (a.phase === 'enter' || a.phase === 'leaving') {
         m.lookTarget = a.spec.flags.stare ? camPos : null;
       } else if (a.phase === 'vanish') {
@@ -687,7 +865,7 @@ export class Game {
         continue;
       }
       if (dist < 0.95) {
-        this.jumpscare(l);
+        this.jumpscare(l.model, 'lurker');
         return;
       }
       nearest = Math.min(nearest, dist);
@@ -705,28 +883,31 @@ export class Game {
     this.after(0.12, () => l.model.dispose());
   }
 
-  jumpscare(l) {
+  jumpscare(model, reason = 'lurker') {
     this.state = 'jumpscare';
     this.ui.closePanels();
     this.ui.clearSay();
+    this.ui.cancelChoice();
     this.player.canMove = false;
     this.player.canLook = false;
     const fwd = this.player.forward(new THREE.Vector3());
     fwd.y = 0;
     fwd.normalize();
-    const root = l.model.root;
+    const root = model.root;
     root.position.set(this.camera.position.x + fwd.x * 0.55, 0, this.camera.position.z + fwd.z * 0.55);
-    const headH = l.model.head.position.y + 0.145;
+    const headH = model.head.position.y + 0.145;
     root.position.y = this.camera.position.y - headH;
     root.lookAt(this.camera.position.x, root.position.y, this.camera.position.z);
-    l.model.update(0.016);
+    model.lookTarget = this.camera.position;
+    model.update(0.016);
     this.audio.jumpscare();
     this.ui.flash(0.5, 300);
     this.distort = 2.2;
     this.after(1.4, () => {
-      for (const x of this.lurkers) x.model.dispose();
+      for (const x of this.lurkers) if (x.model !== model) x.model.dispose();
       this.lurkers = [];
-      this.gameOver('lurker');
+      model.dispose();
+      this.gameOver(reason);
     });
   }
 
@@ -750,7 +931,7 @@ export class Game {
         this.audio.flickerBuzz();
         break;
       case 'elevator':
-        if (this.actors.some((a) => a.phase === 'toElevator' || a.phase === 'waitElevator' || a.phase === 'entering' || a.phase === 'inElevator')) break;
+        if (this.escortWaiting || this.actors.some((a) => ['toElevator', 'waitElevator', 'entering', 'inElevator', 'toEscort'].includes(a.phase))) break;
         this.lobby.setElevatorOpen(true);
         this.audio.elevatorDing();
         if (n >= 3 && this.rng.chance(0.5)) this.lobby.setElevatorFloor(13);
@@ -821,6 +1002,17 @@ export class Game {
   computeTarget() {
     this.camera.updateMatrixWorld();
     this.raycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
+    if (this.state === 'escort') {
+      const hit = this.raycaster.intersectObjects(this.corridor.interactables, true)[0];
+      return hit?.object.userData.interact || null;
+    }
+    // Junto al ascensor con un huésped esperando: basta con mirar hacia el ascensor.
+    const w = this.escortWaiting;
+    if (w && w.phase === 'waitEscort') {
+      const fwd = this.player.forward(_v);
+      const d = this.player.position.distanceTo(SPOTS.elevatorFront);
+      if (d < 3.2 && fwd.x < -0.5) return 'elevator';
+    }
     const objs = [...this.lobby.interactables];
     if (this.current && !this.current.removed) objs.push(this.current.model.root);
     const hits = this.raycaster.intersectObjects(objs, true);
@@ -851,6 +1043,12 @@ export class Game {
         return waiting && c.docsGiven ? ['E', 'Botón rojo — EXPULSAR'] : ['E', 'Botón rojo'];
       case 'phone':
         return this.phone ? ['E', 'Descolgar'] : null;
+      case 'elevator': {
+        const w = this.escortWaiting;
+        return w && w.phase === 'waitEscort' ? ['E', `Acompañar al huésped a la habitación ${w.spec.room}`] : null;
+      }
+      case 'corridorElevator':
+        return this.escort && this.escort.phase === 'returning' ? ['E', 'Volver al vestíbulo'] : null;
       default:
         return null;
     }
@@ -868,7 +1066,13 @@ export class Game {
         this.ui.openDocs(null, this.ledger, this.processed, { ledgerOnly: true });
         break;
       case 'rules':
-        this.ui.openRules(this.rules, this.night);
+        this.ui.openRules(this.rules, this.night, CORRIDOR_RULES);
+        break;
+      case 'elevator':
+        this.startEscort();
+        break;
+      case 'corridorElevator':
+        this.endEscort();
         break;
       case 'bell':
         this.decide(true);
@@ -892,6 +1096,40 @@ export class Game {
     if (!this.isPlaying()) return;
     if (!this.player.active) return;
     const panel = this.ui.panelOpen;
+
+    // Respuestas del pasillo
+    if (this.ui.choosing && !panel) {
+      const n = { Digit1: 0, Numpad1: 0, Digit2: 1, Numpad2: 1, Digit3: 2, Numpad3: 2 }[e.code];
+      if (n !== undefined) {
+        this.ui.pickChoice(n);
+        return;
+      }
+    }
+
+    // Lista de comprobaciones
+    if (e.code === 'KeyC' && this.state !== 'escort') {
+      this.ui.toggleChecklist();
+      this.checklistPref = this.ui.checklistOpen;
+      return;
+    }
+    if (this.ui.checklistOpen && e.code.startsWith('Arrow')) {
+      e.preventDefault();
+      if (e.code === 'ArrowUp') this.ui.moveCheck(-1);
+      else if (e.code === 'ArrowDown') this.ui.moveCheck(1);
+      else if (e.code === 'ArrowRight') this.ui.markCheck(1);
+      else if (e.code === 'ArrowLeft') this.ui.markCheck(2);
+      return;
+    }
+
+    if (this.state === 'escort') {
+      if (e.code === 'KeyE' && !panel && this.target) this.interact(this.target);
+      else if (e.code === 'KeyR') {
+        if (!this.ui.rules.classList.contains('hidden')) this.ui.closeRules();
+        else this.ui.openRules(this.rules, this.night, CORRIDOR_RULES);
+      }
+      return;
+    }
+
     switch (e.code) {
       case 'KeyE':
         if (!panel && this.target) this.interact(this.target);
@@ -902,7 +1140,7 @@ export class Game {
         break;
       case 'KeyR':
         if (!this.ui.rules.classList.contains('hidden')) this.ui.closeRules();
-        else this.ui.openRules(this.rules, this.night);
+        else this.ui.openRules(this.rules, this.night, CORRIDOR_RULES);
         break;
       case 'Digit1':
       case 'Numpad1':
@@ -929,9 +1167,10 @@ export class Game {
     }
     if (this.paused) return;
 
-    const playing = this.state === 'phone' || this.state === 'shift' || this.state === 'finale';
-    this.player.canMove = playing && this.state !== 'finale' && !this.ui.panelOpen;
+    const playing = this.state === 'phone' || this.state === 'shift' || this.state === 'finale' || this.state === 'escort';
+    this.player.canMove = playing && this.state !== 'finale' && !this.ui.panelOpen && !this.fadeHold;
     this.player.canLook = this.state !== 'jumpscare' && !this.ui.panelOpen;
+    this.player.arrowsBlocked = this.ui.checklistOpen;
     this.player.update(dt);
 
     for (const t of this.timers.slice()) {
@@ -947,8 +1186,21 @@ export class Game {
       this.updateLights(dt);
     }
 
+    if (this.state === 'escort' || (this.state === 'jumpscare' && this.corridor.group.visible)) {
+      this.escort?.update(dt);
+      this.corridor.update(dt);
+      if (!this.ui.panelOpen) this.ui.tickChoice(dt);
+    }
+
     if (this.state === 'shift') {
-      if (!this.current) {
+      if (this.escortWaiting) {
+        this.escortNag = (this.escortNag || 0) + dt;
+        if (this.escortNag > 30) {
+          this.escortNag = 0;
+          this.ui.toast('El huésped sigue esperando junto al ascensor (E).');
+        }
+      }
+      if (!this.current && !this.escortWaiting) {
         if (this.queue.length) {
           this.spawnTimer -= dt;
           if (this.spawnTimer <= 0) this.spawnGuest();
@@ -1000,8 +1252,10 @@ export class Game {
     if (this.state !== 'jumpscare') this.distort = Math.min(this.distort, 2);
     else this.distort = Math.max(0, this.distort - dt * 0.5);
     if (this.fadeOut) this.darkness = Math.min(1, this.darkness + dt * 0.4);
+    else if (this.fadeHold) this.darkness = Math.min(1, this.darkness + dt * 2.5);
     else this.darkness = Math.max(0, this.darkness - dt);
-    this.fx.uniforms.distort.value = this.distort;
+    this.distortPulse = Math.max(0, this.distortPulse - dt * 0.6);
+    this.fx.uniforms.distort.value = Math.max(this.distort, this.distortPulse);
     this.fx.uniforms.darkness.value = this.darkness;
   }
 }

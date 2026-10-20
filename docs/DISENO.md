@@ -31,6 +31,29 @@ Llamada de la Gerencia (nuevas normas)
 - **Admitir una anomalía:** el ascensor marca la planta 13, las luces fallan y, al poco, aparece una *presencia* en un rincón oscuro del vestíbulo. Se acerca cuando no la miras. Si la miras fijamente unos segundos, se desvanece. Si llega hasta ti, te encuentra.
 - **Expulsar a un humano:** al rato suena el teléfono. Es él, desde fuera, donde no hay calle.
 
+## Lista de comprobaciones
+
+Panel lateral (tecla C) con una casilla por cada norma activa esa noche: libro de registro, nombres, sombra, espejo, fechas, foto, parpadeo, ojos, pasos... Cada casilla indica dónde comprobarla (Libro, Cédula, Espejo, Cara...). El jugador marca cada punto como correcto (→) o anómalo (←) y la lista da una conclusión: *anomalía → botón rojo*, *huésped legítimo → campanilla* o cuántas comprobaciones faltan.
+
+La lista no comprueba nada sola: es una libreta. El trabajo de mirar sigue siendo del jugador.
+
+## Acompañar a la habitación
+
+Algunos huéspedes piden, al hablar, que el botones les acompañe (la primera noche, siempre un humano para aprender; después, al azar y más a menudo las anomalías). Si se les admite, esperan junto al ascensor y no llega nadie más hasta que los acompañas.
+
+Al subir se entra en un pasillo de moqueta roja con puertas numeradas. El huésped camina delante y se detiene tres veces a pedir algo; el jugador responde con 1 o 2 (14 segundos; si no contesta, cuenta como negarse).
+
+**El juego mental:**
+
+- **Humano:** solo pide cortesías (llevar la maleta, la hora del desayuno, que le despierten...). No hay forma de fallar. Atenderle da propinas.
+- **Anomalía:** primero pide una cortesía para ganarse tu confianza. Después intenta que rompas una **norma del pasillo** y, en la puerta, una última trampa (entrar a revisar la habitación o quedarte con ella).
+  - Si te niegas, **insiste** dos veces más, cada vez con más presión: las luces parpadean, susurros, la imagen se distorsiona y se te acerca un paso.
+  - Si **cedes una sola vez**, susto y fin de partida.
+  - Si resistes, entra en su habitación, la puerta se cierra de golpe y queda **encerrada**: no hay amonestación por haberla admitido.
+  - "Mire atrás" es una trampa física: se oyen pasos detrás de ti y, si te das la vuelta de verdad, estás perdido.
+
+**Normas del pasillo** (al final del Reglamento): atender las peticiones corrientes; nunca entrar en una habitación, apagar una luz, decir tu nombre, mirar atrás, tocar a un huésped, cambiar de planta con él ni quedarte.
+
 ## Noches y anomalías
 
 | Noche | Nuevas anomalías | Cómo se detectan |
@@ -72,11 +95,11 @@ Procedural con WebAudio: lluvia, zumbido grave del edificio, radio de jazz (acor
 ## Ideas para seguir
 
 **Mecánicas**
+- Peticiones de pasillo ambiguas: cortesías que una anomalía usa con doble sentido.
 - Huéspedes que vuelven otra noche con un detalle cambiado.
 - Llamadas de habitaciones que piden cosas imposibles ("traiga toallas a la 1313").
 - Reglas falsas: una nota del reglamento escrita con otra letra. ¿La cumples?
 - Inventario de llaves: dar la llave correcta según el número de habitación.
-- Pasillos: subir con un huésped en el ascensor y acompañarlo (exploración del hotel infinito).
 - Tiempo limitado por huésped; los que esperan demasiado se impacientan... o algo peor.
 - Botones y propinas como economía: comprar un farol, un crucifijo, una radio nueva.
 

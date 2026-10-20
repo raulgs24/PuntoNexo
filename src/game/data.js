@@ -132,6 +132,8 @@ export const GERENCIA_CALLS = [
     'Bienvenido a Punto Nexo, señor Mora. Su turno empieza ahora... y no termina nunca. Es una broma de la casa.',
     'Las normas están en el Reglamento, sobre el mostrador. Léalo. Compruebe cada documento con el Libro de Registro.',
     'Si el huésped es legítimo, toque la campanilla y el ascensor se lo llevará. Si no lo es, pulse el botón rojo.',
+    'Use la lista de comprobaciones, tecla C. Marque cada punto antes de decidir.',
+    'Si alguien le pide que le acompañe a su habitación, hágalo. Y respete las normas del pasillo: están al final del Reglamento.',
     'Y recuerde: no todo lo que entra por esa puerta es un huésped.',
   ],
   [
@@ -152,6 +154,13 @@ export const GERENCIA_CALLS = [
     'Nadie de fuera conoce su nombre, señor Mora. Si alguien lo pronuncia, no es de fuera.',
     'Esta noche viene alguien especial. Trátelo como a cualquier otro.',
   ],
+];
+
+export const ESCORT_REQUESTS = [
+  '¿Podría acompañarme hasta la habitación? No conozco el hotel.',
+  'Una cosa más... ¿me acompañaría arriba? Los pasillos me dan miedo.',
+  'Me han dicho que aquí es fácil perderse. ¿Me acompaña a la habitación?',
+  '¿Sería tan amable de subir conmigo? No me gusta ir a solas en ascensor.',
 ];
 
 export const NIGHT_GUESTS = [5, 6, 7, 7, 7];

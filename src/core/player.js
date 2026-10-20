@@ -9,7 +9,9 @@ export class Player {
   constructor(camera, dom, lobby, { debug = false } = {}) {
     this.camera = camera;
     this.dom = dom;
-    this.lobby = lobby;
+    // Zona transitable actual (vestíbulo o pasillo): { bounds, colliders }.
+    this.world = lobby;
+    this.arrowsBlocked = false;
     this.debug = debug;
     this.position = new THREE.Vector3();
     this.yaw = Math.PI;
@@ -70,9 +72,9 @@ export class Player {
   }
 
   blocked(x, z) {
-    const b = this.lobby.bounds;
+    const b = this.world.bounds;
     if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) return true;
-    for (const c of this.lobby.colliders) {
+    for (const c of this.world.colliders) {
       if (x > c.minX - RADIUS && x < c.maxX + RADIUS && z > c.minZ - RADIUS && z < c.maxZ + RADIUS) return true;
     }
     return false;
@@ -83,10 +85,12 @@ export class Player {
     let mz = 0;
     if (this.canMove && this.active) {
       const k = this.keys;
-      if (k.has('KeyW') || k.has('ArrowUp')) mz += 1;
-      if (k.has('KeyS') || k.has('ArrowDown')) mz -= 1;
-      if (k.has('KeyD') || k.has('ArrowRight')) mx += 1;
-      if (k.has('KeyA') || k.has('ArrowLeft')) mx -= 1;
+      // Con la lista de comprobaciones abierta, las flechas sirven para marcarla.
+      const arrows = !this.arrowsBlocked;
+      if (k.has('KeyW') || (arrows && k.has('ArrowUp'))) mz += 1;
+      if (k.has('KeyS') || (arrows && k.has('ArrowDown'))) mz -= 1;
+      if (k.has('KeyD') || (arrows && k.has('ArrowRight'))) mx += 1;
+      if (k.has('KeyA') || (arrows && k.has('ArrowLeft'))) mx -= 1;
     }
     const len = Math.hypot(mx, mz);
     const sin = Math.sin(this.yaw);
